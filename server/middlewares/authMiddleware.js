@@ -10,11 +10,7 @@ export const authMiddleware = async (req, res, next) => {
         }
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-        // Only fetch admin from DB if we actually need the admin object downstream.
-        // For most auth checks, the decoded token payload is sufficient.
-        // We use lean() to skip Mongoose document hydration overhead.
-        req.admin = await Admin.findById(decoded.id).select("-password").lean();
+        req.admin = await Admin.findById(decoded.id).select("-password");
 
         if (!req.admin) {
             return res.status(401).json({ success: false, message: "Not authorized, invalid token" });

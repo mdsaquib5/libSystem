@@ -24,7 +24,7 @@ export const createSeat = async () => {
 };
 
 export const getSeats = async () => {
-    return await Seat.find().sort({ createdAt: 1 }).lean();
+    return await Seat.find().sort({ createdAt: 1 });
 };
 
 export const updateSeat = async (id, seatNumber) => {
