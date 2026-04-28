@@ -68,11 +68,11 @@ export const admitStudent = async (studentData, imageBuffer) => {
 };
 
 export const getAllStudents = async (query = {}) => {
-    return await Student.find(query).populate("seatId").sort({ createdAt: -1 });
+    return await Student.find(query).populate("seatId").sort({ createdAt: -1 }).lean();
 };
 
 export const getStudentById = async (id) => {
-    const student = await Student.findById(id).populate("seatId");
+    const student = await Student.findById(id).populate("seatId").lean();
     if (!student) throw new Error("Student not found");
     return student;
 };
