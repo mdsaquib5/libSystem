@@ -23,9 +23,9 @@ export default function LoginPage() {
                     <h2 className="auth-title">
                         Admin Login
                     </h2>
-                    {/* <p className="auth-subtitle">
-                        <p>Try adjusting your search or filters to find what you&apos;re looking for.</p>
-                    </p> */}
+                    <p className="auth-subtitle">
+                        Sign in to access your dashboard
+                    </p>
                 </div>
                 <form className="auth-form" onSubmit={handleSubmit}>
                     <div className="form-group">
@@ -58,7 +58,7 @@ export default function LoginPage() {
                     </div>
                     
                     <div className="auth-footer">
-                        <span>Don&apos;t have an account? </span>
+                        <span>Don't have an account? </span>
                         <Link href="/signup" className="auth-link">
                             Sign up here
                         </Link>

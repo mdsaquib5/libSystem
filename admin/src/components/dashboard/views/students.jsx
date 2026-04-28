@@ -92,7 +92,7 @@ const Students = () => {
         <div className="empty-state">
           <MdPersonSearch className="empty-icon" />
           <h3>No students found</h3>
-          <p>Try adjusting your search or filters to find what you&apos;re looking for.</p>
+          <p>Try adjusting your search or filters to find what you're looking for.</p>
         </div>
       )}
     </div>
