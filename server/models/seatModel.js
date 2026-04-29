@@ -38,4 +38,7 @@ const seatSchema = new mongoose.Schema({
     slots: [slotSchema]
 }, { timestamps: true });
 
+seatSchema.index({ "slots.status": 1 });
+seatSchema.index({ "slots.day": 1 });
+
 export const Seat = mongoose.model("Seat", seatSchema);

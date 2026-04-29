@@ -41,4 +41,8 @@ const studentSchema = new mongoose.Schema({
     }
 }, { timestamps: true });
 
+studentSchema.index({ status: 1 });
+studentSchema.index({ seatId: 1 });
+studentSchema.index({ email: 1 }); // Already unique, but good to be explicit if queried
+
 export const Student = mongoose.model("Student", studentSchema);
