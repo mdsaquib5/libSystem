@@ -3,15 +3,13 @@
 import React from 'react';
 import { MdEventSeat, MdPeople, MdCheckCircle, MdCancel } from 'react-icons/md';
 import { useQuery } from '@tanstack/react-query';
-import { getSeats } from '@/api/seat.api';
-import { getTodayAttendance } from '@/api/attendance.api';
-import { getStudents } from '@/api/student.api';
+import { getDashboardStats } from '@/api/dashboard.api';
 
-const MetricCard = ({ title, value, icon, variant }) => (
+const MetricCard = ({ title, value, icon, variant, isLoading }) => (
   <div className="card metric-card">
     <div className="metric-info">
       <span className="metric-title">{title}</span>
-      <span className="metric-value">{value}</span>
+      <span className="metric-value">{isLoading ? '...' : value}</span>
     </div>
     <div className={`metric-icon-wrapper icon-${variant}`}>
       {icon}
@@ -20,24 +18,17 @@ const MetricCard = ({ title, value, icon, variant }) => (
 );
 
 const Overview = () => {
-  const { data: seatsRes } = useQuery({ queryKey: ['seats'], queryFn: getSeats });
-  const { data: attendanceRes } = useQuery({ queryKey: ['attendance'], queryFn: getTodayAttendance });
-  const { data: studentsRes } = useQuery({ queryKey: ['students'], queryFn: getStudents });
+  const { data: statsRes, isLoading } = useQuery({ 
+    queryKey: ['dashboard-stats'], 
+    queryFn: getDashboardStats 
+  });
 
-  const seats = seatsRes?.data || [];
-  const attendance = attendanceRes?.data || [];
-  const students = studentsRes?.data || [];
-
-  const totalStudents = students.length;
-  const presentStudents = attendance.filter(r => r.status === 'present').length;
-  const absentStudents = attendance.filter(r => r.status === 'absent').length;
-  const totalSeats = seats.length;
-  
-  const occupiedSeatsCount = seats.filter(seat => 
-    seat.slots.some(slot => slot.status === 'occupied')
-  ).length;
-
-  const freeSeats = totalSeats - occupiedSeatsCount;
+  const stats = statsRes?.data || {
+    totalStudents: 0,
+    presentStudents: 0,
+    absentStudents: 0,
+    freeSeats: 0
+  };
 
   return (
     <div className="overview-container">
@@ -49,27 +40,31 @@ const Overview = () => {
       <div className="overview-grid">
         <MetricCard 
           title="Total Students" 
-          value={totalStudents} 
+          value={stats.totalStudents} 
           icon={<MdPeople />} 
           variant="blue" 
+          isLoading={isLoading}
         />
         <MetricCard 
           title="Present Students" 
-          value={presentStudents} 
+          value={stats.presentStudents} 
           icon={<MdCheckCircle />} 
           variant="green" 
+          isLoading={isLoading}
         />
         <MetricCard 
           title="Absent Students" 
-          value={absentStudents} 
+          value={stats.absentStudents} 
           icon={<MdCancel />} 
           variant="purple" 
+          isLoading={isLoading}
         />
         <MetricCard 
           title="Free Seats" 
-          value={freeSeats > 0 ? freeSeats : 0} 
+          value={stats.freeSeats} 
           icon={<MdEventSeat />} 
           variant="orange" 
+          isLoading={isLoading}
         />
       </div>
     </div>

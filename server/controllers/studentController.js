@@ -14,6 +14,7 @@ export const admitStudent = async (req, res) => {
 export const getAllStudents = async (req, res) => {
     try {
         const students = await studentService.getAllStudents();
+        res.setHeader('Cache-Control', 'public, max-age=30');
         res.status(200).json({ success: true, data: students });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
