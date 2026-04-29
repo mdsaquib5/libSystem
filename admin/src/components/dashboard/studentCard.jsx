@@ -59,17 +59,19 @@ const StudentCard = ({ student, onRemove, onStatusChange }) => {
           className={`status-select ${student.status}`} 
           value={student.status}
           onChange={(e) => onStatusChange(student._id, e.target.value)}
+          disabled={student.isUpdating}
         >
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
+          <option value="active">{student.isUpdating ? 'Updating...' : 'Active'}</option>
+          <option value="inactive">{student.isUpdating ? 'Updating...' : 'Inactive'}</option>
         </select>
 
         <button 
           className="btn-remove-student"
           onClick={() => onRemove(student._id)}
+          disabled={student.isDeleting}
         >
           <MdDelete />
-          Remove
+          {student.isDeleting ? 'Removing...' : 'Remove'}
         </button>
       </div>
     </div>

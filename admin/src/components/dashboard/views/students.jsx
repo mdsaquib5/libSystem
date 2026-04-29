@@ -30,8 +30,30 @@ const Students = () => {
 
   const statusMutation = useMutation({
     mutationFn: ({ id, status }) => updateStudent(id, { status }),
+    onMutate: async (newStudent) => {
+      await queryClient.cancelQueries({ queryKey: ['students'] });
+      const previousStudents = queryClient.getQueryData(['students']);
+
+      queryClient.setQueryData(['students'], (old) => {
+        if (!old || !old.data) return old;
+        return {
+          ...old,
+          data: old.data.map(s => 
+            s._id === newStudent.id ? { ...s, status: newStudent.status } : s
+          )
+        };
+      });
+
+      return { previousStudents };
+    },
+    onError: (err, newStudent, context) => {
+      queryClient.setQueryData(['students'], context.previousStudents);
+      toast.error('Failed to update status');
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['students'] });
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries(['students']);
       toast.success('Status updated');
     }
   });
@@ -82,7 +104,11 @@ const Students = () => {
           {filteredStudents.map((student) => (
             <StudentCard 
               key={student._id} 
-              student={student} 
+              student={{
+                ...student,
+                isUpdating: statusMutation.isPending && statusMutation.variables?.id === student._id,
+                isDeleting: deleteMutation.isPending && deleteMutation.variables === student._id
+              }} 
               onRemove={(id) => deleteMutation.mutate(id)}
               onStatusChange={(id, status) => statusMutation.mutate({ id, status })}
             />

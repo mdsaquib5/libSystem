@@ -12,12 +12,10 @@ export const getTodayAttendance = async () => {
     const existingAttendance = await Attendance.find({ date: today });
     const attendanceMap = new Map(existingAttendance.map(a => [a.studentId.toString(), a]));
 
-    const results = [];
+    const missingStudents = students.filter(s => !attendanceMap.has(s._id.toString()));
 
-    for (const student of students) {
-        let record = attendanceMap.get(student._id.toString());
-
-        if (!record) {
+    if (missingStudents.length > 0) {
+        const newRecords = missingStudents.map(student => {
             const seat = student.seatId;
             const slot = seat?.slots?.id(student.slotId);
             
@@ -27,27 +25,24 @@ export const getTodayAttendance = async () => {
                 status = inSlot ? "present" : "absent";
             }
 
-            record = await Attendance.findOneAndUpdate(
-                { studentId: student._id, date: today },
-                { 
-                    studentId: student._id,
-                    seatId: student.seatId,
-                    slotId: student.slotId,
-                    date: today,
-                    status,
-                    isManual: false
-                },
-                { upsert: true, returnDocument: 'after' }
-            );
-        }
-
-        results.push({
-            ...record.toObject(),
-            student: student.toObject()
+            return {
+                studentId: student._id,
+                seatId: student.seatId,
+                slotId: student.slotId,
+                date: today,
+                status,
+                isManual: false
+            };
         });
+
+        const createdRecords = await Attendance.insertMany(newRecords);
+        createdRecords.forEach(r => attendanceMap.set(r.studentId.toString(), r));
     }
 
-    return results;
+    return students.map(student => ({
+        ...attendanceMap.get(student._id.toString()).toObject(),
+        student: student.toObject()
+    }));
 };
 
 export const updateAttendance = async (id, status) => {

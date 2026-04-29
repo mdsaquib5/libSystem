@@ -82,10 +82,10 @@ const Availability = () => {
         <button
           className="add-seat-btn"
           onClick={handleAddSeat}
-          disabled={createSeatMutation.isLoading}
+          disabled={createSeatMutation.isPending}
         >
           <MdAdd fontSize="20px" />
-          {createSeatMutation.isLoading ? 'Adding...' : 'Add New Seat'}
+          {createSeatMutation.isPending ? 'Adding...' : 'Add New Seat'}
         </button>
       </div>
 

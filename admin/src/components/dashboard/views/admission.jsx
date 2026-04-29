@@ -109,10 +109,10 @@ const Admission = () => {
           <button 
             type="submit" 
             className="btn btn-primary btn-admission" 
-            disabled={admissionMutation.isLoading}
+            disabled={admissionMutation.isPending}
           >
             <MdCheckCircle fontSize="20px" />
-            {admissionMutation.isLoading ? 'Processing...' : 'Complete Admission'}
+            {admissionMutation.isPending ? 'Processing...' : 'Complete Admission'}
           </button>
         </div>
       </form>

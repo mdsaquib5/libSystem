@@ -57,8 +57,9 @@ const AttendanceCard = ({ record, onStatusToggle }) => {
         <button 
           className={`btn-toggle ${status === 'present' ? 'absent' : 'present'}`}
           onClick={() => onStatusToggle(_id, status === 'present' ? 'absent' : 'present')}
+          disabled={record.isUpdating}
         >
-          Mark as {status === 'present' ? 'Absent' : 'Present'}
+          {record.isUpdating ? 'Updating...' : `Mark as ${status === 'present' ? 'Absent' : 'Present'}`}
         </button>
       </div>
     </div>
@@ -76,8 +77,37 @@ const Attendance = () => {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, status }) => attendanceApi.updateAttendance(id, status),
+    onMutate: async (newRecord) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['attendance'] });
+
+      // Snapshot the previous value
+      const previousAttendance = queryClient.getQueryData(['attendance']);
+
+      // Optimistically update to the new value
+      queryClient.setQueryData(['attendance'], (old) => {
+        if (!old || !old.data) return old;
+        return {
+          ...old,
+          data: old.data.map(record => 
+            record._id === newRecord.id ? { ...record, status: newRecord.status } : record
+          )
+        };
+      });
+
+      // Return a context object with the snapshotted value
+      return { previousAttendance };
+    },
+    onError: (err, newRecord, context) => {
+      // Rollback on error
+      queryClient.setQueryData(['attendance'], context.previousAttendance);
+      toast.error('Failed to update attendance');
+    },
+    onSettled: () => {
+      // Always refetch after error or success to ensure sync
+      queryClient.invalidateQueries({ queryKey: ['attendance'] });
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries(['attendance']);
       toast.success('Attendance updated');
     }
   });
@@ -125,7 +155,10 @@ const Attendance = () => {
           {filteredRecords.map((record) => (
             <AttendanceCard 
               key={record._id} 
-              record={record}
+              record={{
+                ...record,
+                isUpdating: updateMutation.isPending && updateMutation.variables?.id === record._id
+              }}
               onStatusToggle={(id, status) => updateMutation.mutate({ id, status })}
             />
           ))}
