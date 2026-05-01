@@ -1,5 +1,6 @@
 import { montserrat } from "../fonts/font";
 import "./globals.css";
+import "./responsive.css";
 
 export const metadata = {
   title: "LibSystem | Admin Panel",
