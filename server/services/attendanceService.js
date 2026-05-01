@@ -8,50 +8,78 @@ export const getTodayAttendance = async () => {
     const now = new Date();
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
     
-    const students = await Student.find().populate("seatId");
-    const existingAttendance = await Attendance.find({ date: today });
+    // Fetch students and attendance in parallel
+    const [students, existingAttendance] = await Promise.all([
+        Student.find().populate("seatId"),
+        Attendance.find({ date: today })
+    ]);
+
     const attendanceMap = new Map(existingAttendance.map(a => [a.studentId.toString(), a]));
 
-    const missingStudents = students.filter(s => !attendanceMap.has(s._id.toString()));
+    return students.map(student => {
+        const studentId = student._id.toString();
+        const record = attendanceMap.get(studentId);
 
-    if (missingStudents.length > 0) {
-        const newRecords = missingStudents.map(student => {
-            const seat = student.seatId;
-            const slot = seat?.slots?.id(student.slotId);
-            
-            let status = "absent";
-            if (slot) {
-                const inSlot = isTimeInSlot(slot.startTime, slot.endTime, currentMinutes);
-                status = inSlot ? "present" : "absent";
-            }
-
+        if (record) {
             return {
-                studentId: student._id,
+                ...record.toObject(),
+                student: student.toObject()
+            };
+        }
+
+        // Virtual record for students without a mark yet
+        const seat = student.seatId;
+        const slot = seat?.slots?.id(student.slotId);
+        
+        let status = "absent";
+        if (slot) {
+            const inSlot = isTimeInSlot(slot.startTime, slot.endTime, currentMinutes);
+            status = inSlot ? "present" : "absent";
+        }
+
+        return {
+            studentId: student._id,
+            seatId: student.seatId,
+            slotId: student.slotId,
+            date: today,
+            status,
+            isManual: false,
+            isVirtual: true, // Hint for the frontend/controller
+            student: student.toObject()
+        };
+    });
+};
+
+export const updateAttendance = async (id, status, studentId) => {
+    const today = getTodayDateString();
+    
+    // If id is provided, update existing. If not, upsert using studentId and date.
+    let record;
+    if (id && id.length === 24) { // Valid MongoDB ID
+        record = await Attendance.findByIdAndUpdate(
+            id,
+            { status, isManual: true },
+            { returnDocument: 'after', upsert: true }
+        ).populate("studentId");
+    } else {
+        // Find student to get seat/slot info
+        const student = await Student.findById(studentId);
+        if (!student) throw new Error("Student not found");
+
+        record = await Attendance.findOneAndUpdate(
+            { studentId, date: today },
+            { 
+                status, 
+                isManual: true,
                 seatId: student.seatId,
                 slotId: student.slotId,
                 date: today,
-                status,
-                isManual: false
-            };
-        });
-
-        const createdRecords = await Attendance.insertMany(newRecords);
-        createdRecords.forEach(r => attendanceMap.set(r.studentId.toString(), r));
+                studentId
+            },
+            { returnDocument: 'after', upsert: true, new: true }
+        ).populate("studentId");
     }
 
-    return students.map(student => ({
-        ...attendanceMap.get(student._id.toString()).toObject(),
-        student: student.toObject()
-    }));
-};
-
-export const updateAttendance = async (id, status) => {
-    const record = await Attendance.findByIdAndUpdate(
-        id,
-        { status, isManual: true },
-        { returnDocument: 'after' }
-    ).populate("studentId");
-
-    if (!record) throw new Error("Attendance record not found");
+    if (!record) throw new Error("Attendance record not found or could not be created");
     return record;
 };

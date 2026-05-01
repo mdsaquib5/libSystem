@@ -11,28 +11,15 @@ import Attendance from './views/attendance';
 const DashboardLayout = () => {
   const [activeMenu, setActiveMenu] = useState('overview');
 
-  const renderContent = () => {
-    switch (activeMenu) {
-      case 'overview':
-        return <Overview />;
-      case 'availability':
-        return <Availability />;
-      case 'admission':
-        return <Admission />;
-      case 'students':
-        return <Students />;
-      case 'attendance':
-        return <Attendance />;
-      default:
-        return <Overview />;
-    }
-  };
-
   return (
     <div className="layout-container">
       <Sidebar activeMenu={activeMenu} setActiveMenu={setActiveMenu} />
       <main className="main-content">
-        {renderContent()}
+        <div style={{ display: activeMenu === 'overview' ? 'block' : 'none' }}><Overview /></div>
+        <div style={{ display: activeMenu === 'availability' ? 'block' : 'none' }}><Availability /></div>
+        <div style={{ display: activeMenu === 'admission' ? 'block' : 'none' }}><Admission /></div>
+        <div style={{ display: activeMenu === 'students' ? 'block' : 'none' }}><Students /></div>
+        <div style={{ display: activeMenu === 'attendance' ? 'block' : 'none' }}><Attendance /></div>
       </main>
     </div>
   );

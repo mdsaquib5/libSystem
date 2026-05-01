@@ -66,6 +66,32 @@ const AttendanceCard = ({ record, onStatusToggle }) => {
   );
 };
 
+const AttendanceSkeleton = () => (
+  <div className="student-grid">
+    {[1, 2, 3, 4, 5, 6].map((i) => (
+      <div key={i} className="card attendance-card skeleton-card">
+        <div className="flex-between">
+          <div className="student-info-row">
+            <div className="skeleton skeleton-circle"></div>
+            <div className="student-details">
+              <div className="skeleton skeleton-title"></div>
+              <div className="skeleton skeleton-text"></div>
+            </div>
+          </div>
+          <div className="skeleton skeleton-button"></div>
+        </div>
+        <div className="attendance-meta mt-md">
+          <div className="skeleton skeleton-text"></div>
+          <div className="skeleton skeleton-text"></div>
+        </div>
+        <div className="attendance-actions mt-md">
+          <div className="skeleton skeleton-button" style={{ width: '100%' }}></div>
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
 const Attendance = () => {
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState('all');
@@ -76,7 +102,7 @@ const Attendance = () => {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, status }) => attendanceApi.updateAttendance(id, status),
+    mutationFn: ({ id, status, studentId }) => attendanceApi.updateAttendance(id, status, studentId),
     onMutate: async (newRecord) => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ['attendance'] });
@@ -89,9 +115,13 @@ const Attendance = () => {
         if (!old || !old.data) return old;
         return {
           ...old,
-          data: old.data.map(record => 
-            record._id === newRecord.id ? { ...record, status: newRecord.status } : record
-          )
+          data: old.data.map(record => {
+             // For virtual records, we match by studentId
+             if (record.isVirtual && record.studentId === newRecord.studentId) {
+                 return { ...record, status: newRecord.status, isVirtual: false };
+             }
+             return record._id === newRecord.id ? { ...record, status: newRecord.status } : record;
+          })
         };
       });
 
@@ -119,7 +149,6 @@ const Attendance = () => {
     return r.status === filter;
   });
 
-  if (isLoading) return <div className="p-xl">Loading attendance...</div>;
   if (isError) return <div className="p-xl text-red-500">Error loading attendance</div>;
 
   return (
@@ -134,32 +163,35 @@ const Attendance = () => {
           className={`toggle-btn ${filter === 'all' ? 'active' : ''}`}
           onClick={() => setFilter('all')}
         >
-          All ({records.length})
+          All ({isLoading ? '...' : records.length})
         </div>
         <div 
           className={`toggle-btn ${filter === 'present' ? 'active' : ''}`}
           onClick={() => setFilter('present')}
         >
-          Present ({records.filter(r => r.status === 'present').length})
+          Present ({isLoading ? '...' : records.filter(r => r.status === 'present').length})
         </div>
         <div 
           className={`toggle-btn ${filter === 'absent' ? 'active' : ''}`}
           onClick={() => setFilter('absent')}
         >
-          Absent ({records.filter(r => r.status === 'absent').length})
+          Absent ({isLoading ? '...' : records.filter(r => r.status === 'absent').length})
         </div>
       </div>
 
-      {filteredRecords.length > 0 ? (
+      {isLoading ? (
+        <AttendanceSkeleton />
+      ) : filteredRecords.length > 0 ? (
         <div className="student-grid">
           {filteredRecords.map((record) => (
             <AttendanceCard 
-              key={record._id} 
+              key={record._id || record.studentId} 
               record={{
                 ...record,
-                isUpdating: updateMutation.isPending && updateMutation.variables?.id === record._id
+                isUpdating: updateMutation.isPending && 
+                  (updateMutation.variables?.id === record._id || updateMutation.variables?.studentId === record.studentId)
               }}
-              onStatusToggle={(id, status) => updateMutation.mutate({ id, status })}
+              onStatusToggle={(id, status) => updateMutation.mutate({ id, status, studentId: record.studentId })}
             />
           ))}
         </div>

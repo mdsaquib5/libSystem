@@ -7,30 +7,21 @@ export const getDashboardStats = async (req, res) => {
     try {
         const today = getTodayDateString();
         
-        // Run all queries in parallel for maximum speed
-        const [students, seats, attendance] = await Promise.all([
+        // Run all counts in parallel at the database level for maximum speed
+        const [totalStudents, presentCount, absentCount, occupiedSeatsCount, totalSeats] = await Promise.all([
             Student.countDocuments(),
-            Seat.find(),
-            Attendance.find({ date: today })
+            Attendance.countDocuments({ date: today, status: 'present' }),
+            Attendance.countDocuments({ date: today, status: 'absent' }),
+            Seat.countDocuments({ "slots.status": "occupied" }),
+            Seat.countDocuments()
         ]);
 
-        const presentCount = attendance.filter(r => r.status === 'present').length;
-        const absentCount = attendance.filter(r => r.status === 'absent').length;
-        
-        const totalSeats = seats.length;
-        const occupiedSeatsCount = seats.filter(seat => 
-            seat.slots.some(slot => slot.status === 'occupied')
-        ).length;
-
         const freeSeats = totalSeats - occupiedSeatsCount;
-
-        // Set Cache-Control header for 30 seconds to prevent constant 304 checks
-        res.setHeader('Cache-Control', 'public, max-age=30');
 
         res.status(200).json({
             success: true,
             data: {
-                totalStudents: students,
+                totalStudents,
                 presentStudents: presentCount,
                 absentStudents: absentCount,
                 freeSeats: freeSeats > 0 ? freeSeats : 0

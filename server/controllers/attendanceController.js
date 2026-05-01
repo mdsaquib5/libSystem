@@ -11,8 +11,8 @@ export const getTodayAttendance = async (req, res) => {
 
 export const updateAttendance = async (req, res) => {
     try {
-        const { status } = req.body;
-        const attendance = await attendanceService.updateAttendance(req.params.id, status);
+        const { status, studentId } = req.body;
+        const attendance = await attendanceService.updateAttendance(req.params.id, status, studentId);
         res.status(200).json({ success: true, data: attendance, message: "Attendance updated manually" });
     } catch (error) {
         res.status(400).json({ success: false, message: error.message });

@@ -6,13 +6,17 @@ import { useQuery } from '@tanstack/react-query';
 import { getDashboardStats } from '@/api/dashboard.api';
 
 const MetricCard = ({ title, value, icon, variant, isLoading }) => (
-  <div className="card metric-card">
+  <div className={`card metric-card ${isLoading ? 'skeleton-metric' : ''}`}>
     <div className="metric-info">
       <span className="metric-title">{title}</span>
-      <span className="metric-value">{isLoading ? '...' : value}</span>
+      {isLoading ? (
+        <div className="skeleton skeleton-title" style={{ width: '40px', marginTop: '8px' }}></div>
+      ) : (
+        <span className="metric-value">{value}</span>
+      )}
     </div>
     <div className={`metric-icon-wrapper icon-${variant}`}>
-      {icon}
+      {isLoading ? <div className="skeleton skeleton-circle" style={{ width: '24px', height: '24px' }}></div> : icon}
     </div>
   </div>
 );

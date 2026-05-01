@@ -5,7 +5,7 @@ export const getTodayAttendance = async () => {
     return response.data;
 };
 
-export const updateAttendance = async (id, status) => {
-    const response = await API.patch(`/attendance/${id}`, { status });
+export const updateAttendance = async (id, status, studentId) => {
+    const response = await API.patch(`/attendance/${id}`, { status, studentId });
     return response.data;
 };
