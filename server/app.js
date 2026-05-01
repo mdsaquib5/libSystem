@@ -13,19 +13,34 @@ const app = express();
 
 app.use(express.json());
 app.use(cookieParser());
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || "http://localhost:3000")
-    .split(",")
-    .map((o) => o.trim());
+const allowedOrigins = [
+    "http://localhost:3000",
+    "https://lib-system-admin.vercel.app"
+];
+
+// Add origins from env if they exist
+if (process.env.ALLOWED_ORIGINS) {
+    const envOrigins = process.env.ALLOWED_ORIGINS.split(",").map(o => o.trim());
+    envOrigins.forEach(o => {
+        if (!allowedOrigins.includes(o)) allowedOrigins.push(o);
+    });
+}
 
 app.use(cors({
-    origin: (origin, callback) => {
-        if (!origin || allowedOrigins.includes(origin)) {
+    origin: function (origin, callback) {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+        
+        if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes(origin.replace(/\/$/, ""))) {
             callback(null, true);
         } else {
-            callback(new Error(`CORS: origin ${origin} not allowed`));
+            console.log("CORS Blocked for origin:", origin);
+            callback(new Error('Not allowed by CORS'));
         }
     },
-    credentials: true
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"]
 }));
 
 app.use("/api/auth", authRoutes);
