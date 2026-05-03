@@ -1,6 +1,7 @@
 import { Seat } from "../models/seatModel.js";
 import { Student } from "../models/studentModel.js";
 import { timeToMinutes } from "../utils/timeUtils.js";
+import { checkOverlap } from "../utils/dateUtils.js";
 
 const isOverlapping = (slot1, slot2) => {
     const s1 = timeToMinutes(slot1.startTime);
@@ -23,8 +24,33 @@ export const createSeat = async () => {
     return await newSeat.save();
 };
 
-export const getSeats = async () => {
-    return await Seat.find().sort({ createdAt: 1 });
+export const getSeats = async (startDate, endDate) => {
+    const seats = await Seat.find().sort({ createdAt: 1 });
+    
+    // Default to today if no date range provided
+    const today = new Date().toISOString().split('T')[0];
+    const start = new Date(startDate || today);
+    const end = new Date(endDate || today);
+
+    // Fetch all active bookings that might overlap
+    const activeBookings = await Student.find({ status: "active" });
+
+    return seats.map(seat => {
+        const seatObj = seat.toObject();
+        seatObj.slots = seatObj.slots.map(slot => {
+            const booking = activeBookings.find(b => 
+                b.seatId.toString() === seat._id.toString() &&
+                b.slotId.toString() === slot._id.toString() &&
+                checkOverlap(b.startDate, b.endDate, start, end)
+            );
+            return { 
+                ...slot, 
+                status: booking ? "occupied" : "available",
+                bookingEndDate: booking ? booking.endDate : null
+            };
+        });
+        return seatObj;
+    });
 };
 
 export const updateSeat = async (id, seatNumber) => {
@@ -36,7 +62,7 @@ export const updateSeat = async (id, seatNumber) => {
 };
 
 export const deleteSeat = async (id) => {
-    const assignedStudent = await Student.findOne({ seatId: id });
+    const assignedStudent = await Student.findOne({ seatId: id, status: "active" });
     if (assignedStudent) {
         throw new Error(`Cannot delete seat: student "${assignedStudent.name}" is currently assigned to it`);
     }
@@ -49,9 +75,8 @@ export const addSlot = async (seatId, slotData) => {
     const seat = await Seat.findById(seatId);
     if (!seat) throw new Error("Seat not found");
 
-    const slotsOnThisDay = seat.slots.filter(s => s.day === slotData.day);
-    if (slotsOnThisDay.length >= 4) {
-        throw new Error(`Maximum 4 slots allowed for ${slotData.day}`);
+    if (seat.slots.length >= 8) { // General limit instead of per-day
+        throw new Error(`Maximum 8 slots allowed per seat`);
     }
 
     const startMin = timeToMinutes(slotData.startTime);
@@ -61,12 +86,10 @@ export const addSlot = async (seatId, slotData) => {
         throw new Error("End time must be greater than start time");
     }
 
-    const hasOverlap = seat.slots
-        .filter(s => s.day === slotData.day)
-        .some(existingSlot => isOverlapping(existingSlot, slotData));
+    const hasOverlap = seat.slots.some(existingSlot => isOverlapping(existingSlot, slotData));
     
     if (hasOverlap) {
-        throw new Error(`Slot time overlaps with an existing slot on ${slotData.day}`);
+        throw new Error(`Slot time overlaps with an existing slot`);
     }
 
     seat.slots.push(slotData);
@@ -82,13 +105,6 @@ export const updateSlot = async (seatId, slotId, updateData) => {
 
     const slot = seat.slots[slotIndex];
 
-    if (updateData.day && updateData.day !== slot.day) {
-        const slotsOnTargetDay = seat.slots.filter(s => s.day === updateData.day);
-        if (slotsOnTargetDay.length >= 4) {
-            throw new Error(`Maximum 4 slots allowed for ${updateData.day}`);
-        }
-    }
-
     if (updateData.startTime || updateData.endTime) {
         const newStartTime = updateData.startTime || slot.startTime;
         const newEndTime = updateData.endTime || slot.endTime;
@@ -100,25 +116,18 @@ export const updateSlot = async (seatId, slotId, updateData) => {
             throw new Error("End time must be greater than start time");
         }
 
-        const otherSlots = seat.slots.filter(s => s._id.toString() !== slotId && s.day === (updateData.day || slot.day));
+        const otherSlots = seat.slots.filter(s => s._id.toString() !== slotId);
         const hasOverlap = otherSlots.some(existingSlot => 
             isOverlapping(existingSlot, { startTime: newStartTime, endTime: newEndTime })
         );
         
         if (hasOverlap) {
-            throw new Error(`Updated slot time overlaps with an existing slot on ${updateData.day || slot.day}`);
+            throw new Error(`Updated slot time overlaps with an existing slot`);
         }
-    }
-
-    if (updateData.studentId && slot.status === "occupied" && slot.studentId && slot.studentId.toString() !== updateData.studentId) {
-        throw new Error("Slot is already occupied by another student");
     }
 
     if (updateData.startTime) slot.startTime = updateData.startTime;
     if (updateData.endTime) slot.endTime = updateData.endTime;
-    if (updateData.status) slot.status = updateData.status;
-    if (updateData.day) slot.day = updateData.day;
-    if (updateData.studentId !== undefined) slot.studentId = updateData.studentId;
 
     return await seat.save();
 };

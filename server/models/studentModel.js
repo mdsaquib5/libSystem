@@ -26,9 +26,17 @@ const studentSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         required: [true, "Slot assignment is required"]
     },
+    startDate: {
+        type: Date,
+        required: [true, "Start date is required"]
+    },
+    endDate: {
+        type: Date,
+        required: [true, "End date is required"]
+    },
     status: {
         type: String,
-        enum: ["active", "inactive"],
+        enum: ["active", "expired"],
         default: "active"
     },
     admissionDate: {
@@ -44,5 +52,7 @@ const studentSchema = new mongoose.Schema({
 studentSchema.index({ status: 1 });
 studentSchema.index({ seatId: 1 });
 studentSchema.index({ slotId: 1 });
+studentSchema.index({ startDate: 1 });
+studentSchema.index({ endDate: 1 });
 
 export const Student = mongoose.model("Student", studentSchema);

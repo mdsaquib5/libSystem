@@ -8,15 +8,18 @@ const formatTime = (timeObj) => {
   return `${timeObj.hour}:${timeObj.minute} ${timeObj.period}`;
 };
 
-const SeatSelector = ({ activeDay, selectedSeat, setSelectedSeat, selectedSlot, setSelectedSlot }) => {
+const SeatSelector = ({ startDate, endDate, selectedSeat, setSelectedSeat, selectedSlot, setSelectedSlot }) => {
   const { data: seatsResponse, isLoading } = useQuery({
-    queryKey: ['seats'],
-    queryFn: getSeats
+    queryKey: ['seats', startDate, endDate],
+    queryFn: () => getSeats({ startDate, endDate }),
+    enabled: !!startDate && !!endDate
   });
 
   const seats = seatsResponse?.data || [];
-
-  const availableSlots = selectedSeat?.slots?.filter(s => s.day === activeDay) || [];
+  
+  // Find the selected seat in the fresh data to get updated availability
+  const currentSeat = seats.find(s => s._id === selectedSeat?._id);
+  const availableSlots = currentSeat?.slots || [];
   const allOccupied = availableSlots.length > 0 && availableSlots.every(s => s.status === 'occupied');
 
   return (
@@ -29,16 +32,15 @@ const SeatSelector = ({ activeDay, selectedSeat, setSelectedSeat, selectedSlot, 
       <div className="form-group">
         <label className="form-label">Select Seat</label>
         {isLoading ? (
-          <div>Loading seats...</div>
+          <div>Loading availability...</div>
         ) : (
           <div className="selection-grid">
             {seats.map(seat => {
-              const daySlots = seat.slots.filter(s => s.day === activeDay);
-              const fullyBooked = daySlots.length > 0 && daySlots.every(s => s.status === 'occupied');
+              const fullyBooked = seat.slots.length > 0 && seat.slots.every(s => s.status === 'occupied');
               return (
                 <div 
                   key={seat._id}
-                  className={`selectable-item ${selectedSeat?._id === seat._id ? 'selected' : ''} ${fullyBooked ? 'occupied pointer-none cursor-not-allowed' : ''}`}
+                  className={`selectable-item ${selectedSeat?._id === seat._id ? 'selected' : ''} ${fullyBooked ? 'occupied' : ''}`}
                   onClick={() => {
                     setSelectedSeat(seat);
                     setSelectedSlot(null);
@@ -58,14 +60,14 @@ const SeatSelector = ({ activeDay, selectedSeat, setSelectedSeat, selectedSlot, 
       </div>
 
       <div className="form-group mt-lg">
-        <label className="form-label">Select Time Slot ({activeDay})</label>
+        <label className="form-label">Select Time Slot</label>
         {!selectedSeat ? (
           <div className="text-muted-sm">Please select a seat first</div>
         ) : availableSlots.length === 0 ? (
-          <div className="text-muted-sm">No slots configured for {activeDay}</div>
+          <div className="text-muted-sm">No slots configured for this seat</div>
         ) : allOccupied ? (
           <div className="text-error-sm">
-            All slots are occupied for {activeDay}. Choose a different day or seat.
+            All slots are occupied for the selected date range. Choose a different seat.
           </div>
         ) : (
           <div className="selection-grid-slots">

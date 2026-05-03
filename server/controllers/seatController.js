@@ -11,7 +11,8 @@ export const createSeat = async (req, res) => {
 
 export const getSeats = async (req, res) => {
     try {
-        const seats = await seatService.getSeats();
+        const { startDate, endDate } = req.query;
+        const seats = await seatService.getSeats(startDate, endDate);
         res.status(200).json({ success: true, data: seats });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });

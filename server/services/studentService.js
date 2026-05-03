@@ -1,8 +1,7 @@
 import { Student } from "../models/studentModel.js";
-import { Seat } from "../models/seatModel.js";
-import mongoose from "mongoose";
 import cloudinary from "../configs/cloudinary.js";
 import { createPayment } from "./paymentService.js";
+import { checkOverlap } from "../utils/dateUtils.js";
 
 const uploadToCloudinary = (buffer, folder = "library/students") => {
     return new Promise((resolve, reject) => {
@@ -18,56 +17,76 @@ const uploadToCloudinary = (buffer, folder = "library/students") => {
 };
 
 export const admitStudent = async (studentData, imageBuffer) => {
-    const session = await mongoose.startSession();
-    session.startTransaction();
+    const { seatId, slotId, startDate, endDate, monthlyCharge = 1500 } = studentData;
+
+    // Server-side date validation
+    if (!startDate || !endDate) {
+        throw new Error("Start date and end date are required.");
+    }
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        throw new Error("Invalid date format provided.");
+    }
+
+    if (start > end) {
+        throw new Error("Start date cannot be after end date.");
+    }
+
+    // Check overlap
+    const existingBookings = await Student.find({
+        seatId,
+        slotId,
+        status: "active"
+    });
+
+    const hasOverlap = existingBookings.some(booking => 
+        checkOverlap(booking.startDate, booking.endDate, start, end)
+    );
+
+    if (hasOverlap) {
+        throw new Error("This seat and slot is already booked for the selected date range.");
+    }
+
+    let profileImageUrl = null;
+    if (imageBuffer) {
+        profileImageUrl = await uploadToCloudinary(imageBuffer);
+    }
+
+    const newStudent = new Student({ 
+        ...studentData, 
+        startDate: start,
+        endDate: end,
+        profileImage: profileImageUrl 
+    });
+    
+    await newStudent.save();
 
     try {
-        const { seatId, slotId, months = 1, monthlyCharge = 1500 } = studentData;
-
-        const seat = await Seat.findById(seatId).session(session);
-        if (!seat) throw new Error("Seat not found");
-
-        const slot = seat.slots.id(slotId);
-        if (!slot) throw new Error("Slot not found");
-
-        if (slot.status === "occupied") {
-            throw new Error("This slot is already occupied by another student");
-        }
-
-        let profileImageUrl = null;
-        if (imageBuffer) {
-            profileImageUrl = await uploadToCloudinary(imageBuffer);
-        }
-
-        const newStudent = new Student({ ...studentData, profileImage: profileImageUrl });
-        await newStudent.save({ session });
-
-        slot.status = "occupied";
-        slot.studentId = newStudent._id;
-        await seat.save({ session });
-
-        await session.commitTransaction();
-
-        try {
-            await createPayment({
-                studentId: newStudent._id,
-                months: parseInt(months) || 1,
-                monthlyCharge: parseInt(monthlyCharge) || 1500
-            });
-        } catch (payErr) {
-            console.error("Payment record creation failed (non-critical):", payErr.message);
-        }
-
-        return newStudent;
-    } catch (error) {
-        await session.abortTransaction();
-        throw error;
-    } finally {
-        session.endSession();
+        await createPayment({
+            studentId: newStudent._id,
+            months: 1,
+            monthlyCharge: parseInt(monthlyCharge) || 1500
+        });
+    } catch (payErr) {
+        console.error("Payment record creation failed (non-critical):", payErr.message);
     }
+
+    return newStudent;
 };
 
 export const getAllStudents = async (query = {}) => {
+    // Auto-expire students whose end date has passed
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    await Student.updateMany(
+        { endDate: { $lt: today }, status: "active" },
+        { status: "expired" }
+    );
+
     return await Student.find(query).populate("seatId").sort({ createdAt: -1 });
 };
 
@@ -84,31 +103,7 @@ export const updateStudent = async (id, updateData) => {
 };
 
 export const deleteStudent = async (id) => {
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
-    try {
-        const student = await Student.findById(id).session(session);
-        if (!student) throw new Error("Student not found");
-
-        const seat = await Seat.findById(student.seatId).session(session);
-        if (seat) {
-            const slot = seat.slots.id(student.slotId);
-            if (slot) {
-                slot.status = "available";
-                slot.studentId = null;
-                await seat.save({ session });
-            }
-        }
-
-        await Student.findByIdAndDelete(id).session(session);
-
-        await session.commitTransaction();
-        return { message: "Student removed and slot freed successfully" };
-    } catch (error) {
-        await session.abortTransaction();
-        throw error;
-    } finally {
-        session.endSession();
-    }
+    const student = await Student.findByIdAndDelete(id);
+    if (!student) throw new Error("Student not found");
+    return { message: "Student removed successfully" };
 };

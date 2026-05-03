@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import StudentForm from '../admission/studentForm';
 import SeatSelector from '../admission/seatSelector';
-import FeeCalculator from '../admission/feeCalculator';
 import FileUpload from '../admission/fileUpload';
 import { MdCheckCircle } from 'react-icons/md';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -20,11 +19,10 @@ const Admission = () => {
     profileImage: null
   });
 
-  const [activeDay, setActiveDay] = useState('Mon');
-  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [endDate, setEndDate] = useState('');
   const [selectedSeat, setSelectedSeat] = useState(null);
   const [selectedSlot, setSelectedSlot] = useState(null);
-  const [months, setMonths] = useState(1);
   const [docName, setDocName] = useState(null);
 
   const admissionMutation = useMutation({
@@ -37,7 +35,8 @@ const Admission = () => {
       setFormData({ name: '', phone: '', email: '', address: '', profileImage: null });
       setSelectedSeat(null);
       setSelectedSlot(null);
-      setMonths(1);
+      setStartDate(new Date().toISOString().split('T')[0]);
+      setEndDate('');
     },
     onError: (error) => {
       toast.error(error.response?.data?.message || 'Admission failed');
@@ -50,6 +49,14 @@ const Admission = () => {
       return toast.error('Please select a seat and slot');
     }
 
+    if (!endDate) {
+      return toast.error('Please select an End Date');
+    }
+
+    if (new Date(startDate) > new Date(endDate)) {
+      return toast.error('Start Date cannot be after End Date');
+    }
+
     const data = new FormData();
     data.append('name', formData.name);
     data.append('phone', formData.phone);
@@ -57,8 +64,8 @@ const Admission = () => {
     data.append('address', formData.address || '');
     data.append('seatId', selectedSeat._id);
     data.append('slotId', selectedSlot._id);
-    data.append('admissionDate', new Date().toISOString());
-    data.append('months', months);
+    data.append('startDate', startDate);
+    data.append('endDate', endDate);
     data.append('monthlyCharge', 1500);
     if (formData.profileImage) {
       data.append('profileImage', formData.profileImage);
@@ -74,34 +81,44 @@ const Admission = () => {
         <p>Enroll a new student by filling out the details and selecting a seat.</p>
       </div>
 
-      <div className="tabs-container mb-20">
-        {days.map((day) => (
-          <button
-            key={day}
-            type="button"
-            className={`tab-btn ${activeDay === day ? 'active' : ''}`}
-            onClick={() => {
-              setActiveDay(day);
-              setSelectedSlot(null);
-            }}
-          >
-            {day}
-          </button>
-        ))}
+      <div className="card mb-20">
+        <h3 className="section-title">
+          Booking Dates
+        </h3>
+        <div className="form-group-grid">
+          <div className="form-group">
+            <label className="form-label">Start Date</label>
+            <input 
+              type="date" 
+              className="input-field" 
+              value={startDate} 
+              onChange={(e) => setStartDate(e.target.value)} 
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">End Date</label>
+            <input 
+              type="date" 
+              className="input-field" 
+              value={endDate} 
+              onChange={(e) => setEndDate(e.target.value)}
+              required
+            />
+          </div>
+        </div>
       </div>
 
       <form className="admission-grid" onSubmit={handleSubmit}>
         <StudentForm formData={formData} setFormData={setFormData} />
 
         <SeatSelector
-          activeDay={activeDay}
+          startDate={startDate}
+          endDate={endDate}
           selectedSeat={selectedSeat}
           setSelectedSeat={setSelectedSeat}
           selectedSlot={selectedSlot}
           setSelectedSlot={setSelectedSlot}
         />
-
-        <FeeCalculator months={months} setMonths={setMonths} />
 
         <FileUpload fileName={docName} setFileName={setDocName} />
 

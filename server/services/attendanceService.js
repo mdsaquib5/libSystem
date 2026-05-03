@@ -1,16 +1,24 @@
 import { Attendance } from "../models/attendanceModel.js";
 import { Student } from "../models/studentModel.js";
-import { Seat } from "../models/seatModel.js";
 import { isTimeInSlot, getTodayDateString } from "../utils/timeUtils.js";
 
 export const getTodayAttendance = async () => {
     const today = getTodayDateString();
     const now = new Date();
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
-    
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
     // Fetch students and attendance in parallel
     const [students, existingAttendance] = await Promise.all([
-        Student.find().populate("seatId"),
+        Student.find({
+            startDate: { $lte: todayEnd },
+            endDate: { $gte: todayStart },
+            status: "active"
+        }).populate("seatId"),
         Attendance.find({ date: today })
     ]);
 
@@ -30,7 +38,7 @@ export const getTodayAttendance = async () => {
         // Virtual record for students without a mark yet
         const seat = student.seatId;
         const slot = seat?.slots?.id(student.slotId);
-        
+
         let status = "absent";
         if (slot) {
             const inSlot = isTimeInSlot(slot.startTime, slot.endTime, currentMinutes);
@@ -52,7 +60,7 @@ export const getTodayAttendance = async () => {
 
 export const updateAttendance = async (id, status, studentId) => {
     const today = getTodayDateString();
-    
+
     // If id is provided, update existing. If not, upsert using studentId and date.
     let record;
     if (id && id.length === 24) { // Valid MongoDB ID
@@ -68,8 +76,8 @@ export const updateAttendance = async (id, status, studentId) => {
 
         record = await Attendance.findOneAndUpdate(
             { studentId, date: today },
-            { 
-                status, 
+            {
+                status,
                 isManual: true,
                 seatId: student.seatId,
                 slotId: student.slotId,

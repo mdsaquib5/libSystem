@@ -12,8 +12,13 @@ const StudentCard = ({ student, onRemove, onStatusChange }) => {
   const seat = student.seatId;
   const slot = seat?.slots?.find(s => s._id.toString() === student.slotId.toString());
 
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "N/A";
+    return new Date(dateStr).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
+
   return (
-    <div className={`card student-card ${student.status === 'inactive' ? 'inactive' : ''}`}>
+    <div className={`card student-card ${student.status === 'expired' ? 'inactive' : ''}`}>
       <div className="student-info-row">
         <div className="student-avatar avatar-medium">
           {student.profileImage ? (
@@ -39,17 +44,22 @@ const StudentCard = ({ student, onRemove, onStatusChange }) => {
         <div className="meta-item">
           <span className="meta-label">
             <MdEventSeat className="mr-4" />
-            Seat
+            Seat & Slot
           </span>
-          <span className="meta-value">{seat?.seatNumber || 'N/A'}</span>
+          <span className="meta-value">
+            {seat?.seatNumber || 'N/A'} 
+            <small style={{ display: 'block', fontSize: '10px', fontWeight: '500' }}>
+              {slot ? `${formatTime(slot.startTime)} - ${formatTime(slot.endTime)}` : 'N/A'}
+            </small>
+          </span>
         </div>
         <div className="meta-item">
           <span className="meta-label">
             <MdAccessTime className="mr-4" />
-            Slot ({slot?.day || 'N/A'})
+            Booking Period
           </span>
-          <span className="meta-value text-xs">
-            {slot ? `${formatTime(slot.startTime)} - ${formatTime(slot.endTime)}` : 'N/A'}
+          <span className="meta-value" style={{ fontSize: '11px' }}>
+            {formatDate(student.startDate)} - {formatDate(student.endDate)}
           </span>
         </div>
       </div>
@@ -62,7 +72,7 @@ const StudentCard = ({ student, onRemove, onStatusChange }) => {
           disabled={student.isUpdating}
         >
           <option value="active">{student.isUpdating ? 'Updating...' : 'Active'}</option>
-          <option value="inactive">{student.isUpdating ? 'Updating...' : 'Inactive'}</option>
+          <option value="expired">{student.isUpdating ? 'Updating...' : 'Expired'}</option>
         </select>
 
         <button 

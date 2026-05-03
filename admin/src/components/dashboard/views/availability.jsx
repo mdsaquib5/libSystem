@@ -9,12 +9,10 @@ import * as seatApi from '@/api/seat.api';
 
 const Availability = () => {
   const queryClient = useQueryClient();
-  const [activeDay, setActiveDay] = useState('Mon');
-  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
   const { data: seatsResponse, isLoading, isError } = useQuery({
     queryKey: ['seats'],
-    queryFn: seatApi.getSeats
+    queryFn: () => seatApi.getSeats(),
   });
 
   const seats = seatsResponse?.data || [];
@@ -66,10 +64,10 @@ const Availability = () => {
   };
 
   const handleAddSlot = (seatId, slotData) => {
-    addSlotMutation.mutate({ id: seatId, slotData: { ...slotData, day: activeDay } });
+    addSlotMutation.mutate({ id: seatId, slotData });
   };
 
-  if (isLoading) return <div className="p-xl">Loading seats...</div>;
+  if (isLoading) return <div className="p-xl">Loading availability...</div>;
   if (isError) return <div className="p-xl text-red-500">Error loading seats</div>;
 
   return (
@@ -77,7 +75,7 @@ const Availability = () => {
       <div className="availability-header-row">
         <div className="availability-header">
           <h1>Seat Availability</h1>
-          <p>Manage library seats and time slots across the week.</p>
+          <p>Real-time view of library seats and current slot occupancy.</p>
         </div>
         <button
           className="add-seat-btn"
@@ -87,29 +85,6 @@ const Availability = () => {
           <MdAdd fontSize="20px" />
           {createSeatMutation.isPending ? 'Adding...' : 'Add New Seat'}
         </button>
-      </div>
-
-      <div className="tabs-container">
-        {days.map((day) => {
-          const availableCount = seats.reduce((total, seat) => {
-            return total + seat.slots.filter(s => s.day === day && s.status === 'available').length;
-          }, 0);
-
-          return (
-            <button
-              key={day}
-              className={`tab-btn ${activeDay === day ? 'active' : ''}`}
-              onClick={() => setActiveDay(day)}
-            >
-              {day}
-              {availableCount > 0 && (
-                <span className={`badge-count ${activeDay === day ? 'badge-count-active' : 'badge-count-inactive'}`}>
-                  {availableCount}
-                </span>
-              )}
-            </button>
-          );
-        })}
       </div>
 
       <div className="legend">
@@ -129,7 +104,7 @@ const Availability = () => {
             key={seat._id}
             seatId={seat._id}
             name={seat.seatNumber}
-            slots={seat.slots.filter(s => s.day === activeDay)}
+            slots={seat.slots}
             onUpdateSeat={(id, name) => updateSeatMutation.mutate({ id, name })}
             onDeleteSeat={(id) => deleteSeatMutation.mutate(id)}
             onAddSlot={handleAddSlot}

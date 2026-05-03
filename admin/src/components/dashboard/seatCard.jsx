@@ -9,10 +9,25 @@ const formatTime = (timeObj) => {
   return `${timeObj.hour}:${timeObj.minute} ${timeObj.period}`;
 };
 
-const Slot = ({ id, startTime, endTime, status, onEdit, onDelete }) => {
+const formatDate = (dateStr) => {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
+const Slot = ({ id, startTime, endTime, status, bookingEndDate, onEdit, onDelete }) => {
   return (
-    <div className={`slot ${status} slot-display`}>
-      {formatTime(startTime)} - {formatTime(endTime)}
+    <div className={`slot ${status}`}>
+      <div className="slot-main-info">
+        <div className="slot-time">{formatTime(startTime)} - {formatTime(endTime)}</div>
+        <div className="slot-status">
+          {status === 'occupied' ? (
+            <span className="occupied-till text-xs font-600">Occupied till: {formatDate(bookingEndDate)}</span>
+          ) : (
+            <span className="available-label text-xs font-600">Available</span>
+          )}
+        </div>
+      </div>
       <div className="slot-actions">
         <button onClick={() => onDelete(id)} className="btn-slot-delete"><MdDelete /></button>
       </div>
@@ -24,7 +39,7 @@ const SeatCard = ({ seatId, name: initialName, slots = [], onUpdateSeat, onDelet
   const [isEditing, setIsEditing] = useState(false);
   const [isAddingSlot, setIsAddingSlot] = useState(false);
   const [tempName, setTempName] = useState(initialName);
-  
+
   const [newSlotData, setNewSlotData] = useState({
     startTime: { hour: '09', minute: '00', period: 'AM' },
     endTime: { hour: '11', minute: '00', period: 'AM' },
@@ -87,21 +102,22 @@ const SeatCard = ({ seatId, name: initialName, slots = [], onUpdateSeat, onDelet
             startTime={slot.startTime}
             endTime={slot.endTime}
             status={slot.status}
+            bookingEndDate={slot.bookingEndDate}
             onDelete={(slotId) => onDeleteSlot(seatId, slotId)}
           />
         ))}
 
         {isAddingSlot && (
           <div className="new-slot-form grid-full">
-            <TimeInput 
-              label="Start" 
-              value={newSlotData.startTime} 
-              onChange={(val) => setNewSlotData({...newSlotData, startTime: val})} 
+            <TimeInput
+              label="Start"
+              value={newSlotData.startTime}
+              onChange={(val) => setNewSlotData({ ...newSlotData, startTime: val })}
             />
-            <TimeInput 
-              label="End" 
-              value={newSlotData.endTime} 
-              onChange={(val) => setNewSlotData({...newSlotData, endTime: val})} 
+            <TimeInput
+              label="End"
+              value={newSlotData.endTime}
+              onChange={(val) => setNewSlotData({ ...newSlotData, endTime: val })}
             />
             <div className="flex-center gap-8 mt-12">
               <button className="btn-cancel-small" onClick={() => setIsAddingSlot(false)}>Cancel</button>
@@ -109,7 +125,7 @@ const SeatCard = ({ seatId, name: initialName, slots = [], onUpdateSeat, onDelet
             </div>
           </div>
         )}
-        
+
         {!isAddingSlot && !isEditing && slots.length < 4 && (
           <button
             className="btn-add-slot"
@@ -118,6 +134,15 @@ const SeatCard = ({ seatId, name: initialName, slots = [], onUpdateSeat, onDelet
             <MdAdd /> Add Slot
           </button>
         )}
+      </div>
+
+      <div className="seat-footer mt-16 pt-12" style={{ borderTop: '1px solid var(--border)' }}>
+        <div className="flex-between align-center">
+          <span className="text-muted-sm font-600">Available Slots</span>
+          <span className={`badge-count ${slots.filter(s => s.status === 'available').length > 0 ? 'badge-count-active' : 'badge-count-inactive'}`}>
+            {`${slots.filter(s => s.status === 'available').length} / ${slots.length}`}
+          </span>
+        </div>
       </div>
     </div>
   );

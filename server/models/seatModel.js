@@ -10,21 +10,6 @@ const slotSchema = new mongoose.Schema({
         hour: { type: String, required: true },
         minute: { type: String, required: true },
         period: { type: String, enum: ["AM", "PM"], required: true }
-    },
-    day: {
-        type: String,
-        enum: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-        required: true
-    },
-    status: {
-        type: String,
-        enum: ["available", "occupied"],
-        default: "available"
-    },
-    studentId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Student", // Assuming a Student model might exist later, or just nullable
-        default: null
     }
 }, { timestamps: true });
 
@@ -38,7 +23,7 @@ const seatSchema = new mongoose.Schema({
     slots: [slotSchema]
 }, { timestamps: true });
 
-seatSchema.index({ "slots.status": 1 });
-seatSchema.index({ "slots.day": 1 });
+seatSchema.index({ "slots.startTime.hour": 1 });
+seatSchema.index({ "slots.startTime.period": 1 });
 
 export const Seat = mongoose.model("Seat", seatSchema);

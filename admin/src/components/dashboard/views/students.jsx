@@ -94,7 +94,7 @@ const Students = () => {
           >
             <option value="all">All Status</option>
             <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
+            <option value="expired">Expired</option>
           </select>
         </div>
       </div>
